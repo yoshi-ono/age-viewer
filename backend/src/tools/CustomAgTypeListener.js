@@ -19,6 +19,9 @@
 
 import AgtypeListener from "./AgtypeListener";
 
+const MIN_SAFE_BIGINT = BigInt(Number.MIN_SAFE_INTEGER);
+const MAX_SAFE_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
+
 class CustomAgTypeListener extends AgtypeListener {
     rootObject = null;
     objectInsider = [];
@@ -78,10 +81,20 @@ class CustomAgTypeListener extends AgtypeListener {
     }
 
     exitIntegerValue(ctx) {
-        const value = parseInt(ctx.getText());
+        const value = this.parseIntegerValue(ctx.getText());
         if(!this.pushIfArray(value)){
             this.lastValue = value;
         }
+    }
+
+    parseIntegerValue(valueText) {
+        const parsed = BigInt(valueText);
+        if (parsed >= MIN_SAFE_BIGINT && parsed <= MAX_SAFE_BIGINT) {
+            return Number(parsed);
+        }
+
+        // Keep out-of-range integers as strings to avoid precision loss in JSON responses.
+        return parsed.toString();
     }
 
     exitFloatValue(ctx) {

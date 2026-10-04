@@ -37,8 +37,6 @@ function AGTypeParse(input) {
 
 async function setAGETypes(client, types) {
     await client.query(`
-        CREATE EXTENSION IF NOT EXISTS age;
-        LOAD 'age';
         SET search_path = ag_catalog, "$user", public;
     `)
 

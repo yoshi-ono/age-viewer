@@ -85,6 +85,16 @@ describe('Test Connector Api', () => {
         done();
     });
 
+    it('Unsafe Integer Precision', (done) => {
+        const ret = AGTypeParse('{"id": 11258999068426253, "label": "LocalCircuit", "properties": {"names": "x"}}::vertex');
+        assert.deepStrictEqual(ret, {
+            id: '11258999068426253',
+            label: 'LocalCircuit',
+            properties: { names: 'x' }
+        });
+        done();
+    });
+
     it('String', (done) => {
         const ret = AGTypeParse('"parent"');
         assert.deepStrictEqual(ret, 'parent');
