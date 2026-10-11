@@ -44,9 +44,11 @@ export const VerticalLine = () => (
     style={{
       backgroundColor: '#C4C4C4',
       width: '1px',
-      height: '120px',
-      marginTop: '37px',
-      marginBottom: '37px',
+      minHeight: '120px',
+      alignSelf: 'stretch',
+      flexShrink: 0,
+      marginTop: '24px',
+      marginBottom: '24px',
     }}
   />
 );

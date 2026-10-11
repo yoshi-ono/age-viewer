@@ -1,4 +1,10 @@
-select * from (SELECT null as key, null as keytype) A limit 0;
+SELECT key, 'v' AS key_type FROM cypher('%s', $$
+    MATCH (n) UNWIND keys(n) AS k RETURN DISTINCT k
+$$) AS (key agtype)
+UNION ALL
+SELECT key, 'e' AS key_type FROM cypher('%s', $$
+    MATCH ()-[r]->() UNWIND keys(r) AS k RETURN DISTINCT k
+$$) AS (key agtype);
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one

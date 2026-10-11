@@ -58,12 +58,18 @@ $$) as (V agtype, R agtype, V2 agtype);`;
   return '';
 };
 
-const genPropQuery = (eleType, propertyName) => {
+const genPropQuery = (eleType, propertyName, database) => {
   if (eleType === 'v') {
-    return `MATCH (V) WHERE V.${propertyName} IS NOT NULL RETURN V`;
+    return `SELECT * from cypher('${database.graph}', $$
+        MATCH (V) WHERE V.${propertyName} IS NOT NULL
+        RETURN V
+$$) as (V agtype);`;
   }
   if (eleType === 'e') {
-    return `MATCH (V)-[R]->(V2) WHERE R.${propertyName} IS NOT NULL RETURN *`;
+    return `SELECT * from cypher('${database.graph}', $$
+        MATCH (V)-[R]->(V2) WHERE R.${propertyName} IS NOT NULL
+        RETURN V,R,V2
+$$) as (V agtype, R agtype, V2 agtype);`;
   }
   return '';
 };
@@ -83,7 +89,7 @@ const NodeList = ({ nodes, setCommand }) => {
       <div style={{
         display: 'flex',
         flexWrap: 'wrap',
-        height: '80px',
+        maxHeight: '200px',
         overflowY: 'auto',
         marginTop: '12px',
       }}
@@ -145,7 +151,7 @@ const EdgeList = ({ edges, setCommand }) => {
       <div style={{
         display: 'flex',
         flexWrap: 'wrap',
-        height: '80px',
+        maxHeight: '200px',
         overflowY: 'auto',
         marginTop: '12px',
       }}
@@ -205,7 +211,7 @@ const PropertyList = ({ propertyKeys, setCommand }) => {
       <div style={{
         display: 'flex',
         flexWrap: 'wrap',
-        height: '80px',
+        maxHeight: '200px',
         overflowY: 'auto',
         marginTop: '12px',
       }}
@@ -225,16 +231,25 @@ PropertyList.propTypes = {
   setCommand: PropTypes.func.isRequired,
 };
 
-const PropertyItems = ({ propertyName, keyType, setCommand }) => (
+const PropertyItems = connect((state) => ({
+  database: state.database,
+}), {})(({
+  propertyName, keyType, setCommand, database,
+}) => (
   <button
     type="button"
-    className={`${keyType === 'v' ? 'propertie-item' : 'propertie-item'} propertie-item`}
-    onClick={() => setCommand(genPropQuery(keyType, propertyName))}
+    className={`propertie-item ${keyType === 'v' ? 'propertie-item-node' : 'propertie-item-edge'}`}
+    title={keyType === 'v' ? 'Node property' : 'Edge property'}
+    onClick={() => setCommand(genPropQuery(keyType, propertyName, database))}
   >
+    {keyType === 'v' ? '' : '-> '}
     {propertyName}
   </button>
-);
+));
 PropertyItems.propTypes = {
+  database: PropTypes.shape({
+    graph: PropTypes.string,
+  }).isRequired,
   propertyName: PropTypes.string.isRequired,
   keyType: PropTypes.string.isRequired,
   setCommand: PropTypes.func.isRequired,

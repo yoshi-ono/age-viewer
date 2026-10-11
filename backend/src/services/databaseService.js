@@ -63,7 +63,7 @@ class DatabaseService {
             let { nodes, edges } = await this.readMetaData(curGraph);
             data.nodes = nodes;
             data.edges = edges;
-            data.propertyKeys = await this.getPropertyKeys();
+            data.propertyKeys = await this.getPropertyKeys(curGraph);
             data.graph = curGraph;
             data.database = database;
             data.role = await this.getRole();
@@ -123,10 +123,21 @@ class DatabaseService {
         return this.parseMeta(queryResult.rows);
     }
 
-    async getPropertyKeys() {
+    async getPropertyKeys(graphName) {
+        if (!graphName) return [];
         let graphRepository = this._graphRepository;
-        let queryResult = await graphRepository.execute(getQuery('property_keys'));
-        return queryResult.rows;
+        // graph name is embedded in a SQL string literal; escape single quotes
+        const escaped = String(graphName).replace(/'/g, "''");
+        const query = getQuery('property_keys').replace(/%s/g, escaped);
+        try {
+            let queryResult = await graphRepository.execute(query);
+            return queryResult.rows
+                .map((row) => ({ key: String(row.key), key_type: row.key_type }))
+                .sort((a, b) => a.key_type.localeCompare(b.key_type) || a.key.localeCompare(b.key));
+        } catch (error) {
+            console.error('Failed to get property keys:', error.message);
+            return [];
+        }
     }
 
     async getRole() {

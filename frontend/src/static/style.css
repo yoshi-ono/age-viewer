@@ -178,6 +178,11 @@ body {
     margin: 0 1px 2.5px 1px;
 }
 
+/* Wrapper of the last divider: flex so the VerticalLine can stretch */
+#lastHorizontalLine {
+    display: flex;
+}
+
 #graphSelectDropdown {
     display: grid;
 }
@@ -344,6 +349,18 @@ a[data-toggle="collapse"] {
     border-radius: 5px;
     opacity: 1;
     color: #ffffff;
+}
+
+/* Node property: pill shape (same as Node Label) */
+.propertie-item.propertie-item-node,
+.propertie-item.propertie-item-node:hover {
+    border-radius: 20px;
+}
+
+/* Edge property: square shape (same as Edge Label) */
+.propertie-item.propertie-item-edge,
+.propertie-item.propertie-item-edge:hover {
+    border-radius: 5px;
 }
 
 .graph-item {
