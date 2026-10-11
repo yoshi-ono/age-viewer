@@ -64,6 +64,16 @@ class DatabaseController {
             throw new Error('Not connected');
         }
     }
+
+    async getPropertyValues(req, res, next) {
+        let databaseService = sessionService.get(req.sessionID);
+        if (databaseService.isConnected()) {
+            let values = await databaseService.getPropertyValues(req.body);
+            res.status(200).json(values).end();
+        } else {
+            throw new Error('Not connected');
+        }
+    }
     /*
     async getMetaChart(req, res, next) {
         let databaseService = sessionService.get(req.sessionID);

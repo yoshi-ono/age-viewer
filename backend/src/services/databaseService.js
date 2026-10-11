@@ -140,6 +140,26 @@ class DatabaseService {
         }
     }
 
+    // Distinct values of a property (with counts) in the given graph.
+    // keyType: 'v' (vertex) or 'e' (edge)
+    async getPropertyValues({ graph, key, keyType, limit = 100 } = {}) {
+        if (!graph || !key) throw new Error('graph and key are required');
+        if (keyType !== 'v' && keyType !== 'e') throw new Error('keyType must be "v" or "e"');
+        // key is embedded in a backquoted cypher identifier inside a $$ string
+        if (/[`$]/.test(key)) throw new Error(`Unsupported property key: ${key}`);
+        const n = Math.max(1, Math.min(parseInt(limit, 10) || 100, 1000));
+        const escapedGraph = String(graph).replace(/'/g, "''");
+        const match = keyType === 'v' ? 'MATCH (x)' : 'MATCH ()-[x]->()';
+        const query = `SELECT value, cnt FROM cypher('${escapedGraph}', $$
+            ${match} WHERE x.\`${key}\` IS NOT NULL
+            RETURN x.\`${key}\` AS value, count(*) AS cnt
+            ORDER BY cnt DESC, value
+            LIMIT ${n}
+        $$) AS (value agtype, cnt agtype);`;
+        const queryResult = await this._graphRepository.execute(query);
+        return queryResult.rows.map((row) => ({ value: row.value, cnt: Number(row.cnt) }));
+    }
+
     async getRole() {
         let graphRepository = this._graphRepository;
         let queryResult = await graphRepository.execute(getQuery('get_role'), [this.getConnectionInfo().user]);

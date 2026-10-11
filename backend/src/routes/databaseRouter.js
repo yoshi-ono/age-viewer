@@ -27,5 +27,6 @@ router.get("/", wrap(databaseController.getStatus));
 router.post("/connect", wrap(databaseController.connectDatabase));
 router.get("/disconnect", wrap(databaseController.disconnectDatabase));
 router.post("/meta", wrap(databaseController.getMetadata));
+router.post("/propertyValues", wrap(databaseController.getPropertyValues));
 router.get("/metaChart", wrap(databaseController.getMetaChart));
 module.exports = router;

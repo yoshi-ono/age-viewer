@@ -363,6 +363,64 @@ a[data-toggle="collapse"] {
     border-radius: 5px;
 }
 
+/* Property value candidates (popover) */
+.property-candidates {
+    display: flex;
+    flex-direction: column;
+    min-width: 220px;
+    max-width: 360px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.property-candidate {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 8px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: #142B80;
+    text-align: left;
+    cursor: pointer;
+}
+
+.property-candidate:hover {
+    background-color: #2756FF;
+    color: #ffffff;
+}
+
+.property-candidate-all {
+    font-weight: bold;
+    border-bottom: 1px solid #DEDEDE;
+    border-radius: 4px 4px 0 0;
+    margin-bottom: 4px;
+}
+
+.property-candidate-value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.property-candidate-count {
+    flex-shrink: 0;
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.property-candidates-status {
+    padding: 6px 8px;
+    color: #888888;
+}
+
+.property-candidates-error {
+    color: #d4380d;
+    white-space: normal;
+}
+
 .graph-item {
     height: 35px;
     background-color: #ffffff;

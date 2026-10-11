@@ -17,10 +17,10 @@
  * under the License.
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 
-import { Modal } from 'antd';
+import { Modal, Popover, Spin } from 'antd';
 import uuid from 'react-uuid';
 import { connect, useDispatch } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -58,16 +58,33 @@ $$) as (V agtype, R agtype, V2 agtype);`;
   return '';
 };
 
-const genPropQuery = (eleType, propertyName, database) => {
+// Convert a JS value (parsed agtype) into a Cypher literal.
+const toCypherLiteral = (v) => {
+  if (v === null || v === undefined) return 'null';
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  if (typeof v === 'string') {
+    return `'${v.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+  }
+  if (Array.isArray(v)) return `[${v.map(toCypherLiteral).join(', ')}]`;
+  if (typeof v === 'object') {
+    const entries = Object.entries(v).map(([k, val]) => `\`${k}\`: ${toCypherLiteral(val)}`);
+    return `{${entries.join(', ')}}`;
+  }
+  return String(v);
+};
+
+// value === undefined -> IS NOT NULL, otherwise -> = <literal>
+const genPropQuery = (eleType, propertyName, database, value) => {
+  const cond = value === undefined ? 'IS NOT NULL' : `= ${toCypherLiteral(value)}`;
   if (eleType === 'v') {
     return `SELECT * from cypher('${database.graph}', $$
-        MATCH (V) WHERE V.${propertyName} IS NOT NULL
+        MATCH (V) WHERE V.${propertyName} ${cond}
         RETURN V
 $$) as (V agtype);`;
   }
   if (eleType === 'e') {
     return `SELECT * from cypher('${database.graph}', $$
-        MATCH (V)-[R]->(V2) WHERE R.${propertyName} IS NOT NULL
+        MATCH (V)-[R]->(V2) WHERE R.${propertyName} ${cond}
         RETURN V,R,V2
 $$) as (V agtype, R agtype, V2 agtype);`;
   }
@@ -201,7 +218,7 @@ const PropertyList = ({ propertyKeys, setCommand }) => {
   if (propertyKeys) {
     list = propertyKeys.map((item) => (
       <PropertyItems
-        key={uuid()}
+        key={`${item.key_type}:${item.key}`}
         propertyName={item.key}
         keyType={item.key_type}
         setCommand={setCommand}
@@ -231,21 +248,122 @@ PropertyList.propTypes = {
   setCommand: PropTypes.func.isRequired,
 };
 
+const formatValue = (v) => {
+  if (typeof v === 'string') return `"${v}"`;
+  if (v !== null && typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+};
+
+// Candidate list shown in the popover: IS NOT NULL + distinct values (with counts)
+const PropertyValueCandidates = ({
+  graph, propertyName, keyType, onSelect,
+}) => {
+  const [loading, setLoading] = useState(true);
+  const [values, setValues] = useState([]);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch('/api/v1/db/propertyValues', {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ graph, key: propertyName, keyType }),
+        });
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body.message || response.statusText);
+        }
+        const rows = await response.json();
+        if (!cancelled) setValues(rows);
+      } catch (e) {
+        if (!cancelled) setError(e.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [graph, propertyName, keyType]);
+
+  return (
+    <div className="property-candidates">
+      <button
+        type="button"
+        className="property-candidate property-candidate-all"
+        onClick={() => onSelect(undefined)}
+      >
+        IS NOT NULL
+      </button>
+      {loading && <div className="property-candidates-status"><Spin size="small" /></div>}
+      {error && <div className="property-candidates-status property-candidates-error">{error}</div>}
+      {!loading && !error && values.length === 0 && (
+        <div className="property-candidates-status">No values</div>
+      )}
+      {values.map(({ value, cnt }) => (
+        <button
+          key={uuid()}
+          type="button"
+          className="property-candidate"
+          title={formatValue(value)}
+          onClick={() => onSelect(value)}
+        >
+          <span className="property-candidate-value">
+            =
+            {' '}
+            {formatValue(value)}
+          </span>
+          <span className="property-candidate-count">{cnt}</span>
+        </button>
+      ))}
+    </div>
+  );
+};
+PropertyValueCandidates.propTypes = {
+  graph: PropTypes.string.isRequired,
+  propertyName: PropTypes.string.isRequired,
+  keyType: PropTypes.string.isRequired,
+  onSelect: PropTypes.func.isRequired,
+};
+
 const PropertyItems = connect((state) => ({
   database: state.database,
 }), {})(({
   propertyName, keyType, setCommand, database,
-}) => (
-  <button
-    type="button"
-    className={`propertie-item ${keyType === 'v' ? 'propertie-item-node' : 'propertie-item-edge'}`}
-    title={keyType === 'v' ? 'Node property' : 'Edge property'}
-    onClick={() => setCommand(genPropQuery(keyType, propertyName, database))}
-  >
-    {keyType === 'v' ? '' : '-> '}
-    {propertyName}
-  </button>
-));
+}) => {
+  const [open, setOpen] = useState(false);
+  const handleSelect = (value) => {
+    setOpen(false);
+    setCommand(genPropQuery(keyType, propertyName, database, value));
+  };
+  return (
+    <Popover
+      trigger="click"
+      placement="bottomLeft"
+      open={open}
+      onOpenChange={setOpen}
+      destroyTooltipOnHide
+      title={`${keyType === 'v' ? 'Node' : 'Edge'} property: ${propertyName}`}
+      content={(
+        <PropertyValueCandidates
+          graph={database.graph}
+          propertyName={propertyName}
+          keyType={keyType}
+          onSelect={handleSelect}
+        />
+      )}
+    >
+      <button
+        type="button"
+        className={`propertie-item ${keyType === 'v' ? 'propertie-item-node' : 'propertie-item-edge'}`}
+        title={keyType === 'v' ? 'Node property' : 'Edge property'}
+      >
+        {keyType === 'v' ? '' : '-> '}
+        {propertyName}
+      </button>
+    </Popover>
+  );
+});
 PropertyItems.propTypes = {
   database: PropTypes.shape({
     graph: PropTypes.string,
